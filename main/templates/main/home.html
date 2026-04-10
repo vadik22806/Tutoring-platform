@@ -1,0 +1,298 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Главная{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Герой-секция -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="hero-section text-center p-5">
+                <h1 class="display-3 mb-3">StudyEasy</h1>
+                <p class="lead mb-4">Платформа для поиска репетиторов и организации онлайн-обучения</p>
+                <div class="d-flex justify-content-center gap-3">
+                    {% if not user.is_authenticated %}
+                        <a href="{% url 'register_choice' %}" class="btn btn-primary btn-lg">
+                            <i class="fa-solid fa-user-plus me-2"></i>Начать обучение
+                        </a>
+                        <a href="{% url 'tutors_list' %}" class="btn btn-outline-light btn-lg">
+                            <i class="fa-solid fa-chalkboard-user me-2"></i>Найти репетитора
+                        </a>
+                    {% else %}
+                        <a href="{% url 'tutors_list' %}" class="btn btn-primary btn-lg">
+                            <i class="fa-solid fa-chalkboard-user me-2"></i>Найти репетитора
+                        </a>
+                        {% if user.role == 'student' %}
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-success btn-lg">
+                                <i class="fa-solid fa-gauge-high me-2"></i>Мой кабинет
+                            </a>
+                        {% elif user.role == 'tutor' %}
+                            <a href="{% url 'tutor_dashboard' %}" class="btn btn-success btn-lg">
+                                <i class="fa-solid fa-gauge-high me-2"></i>Мой кабинет
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-5">
+        <div class="col-md-4 mb-3">
+            <div class="stat-card text-center p-4">
+                <i class="fa-solid fa-chalkboard-user fa-3x mb-3 text-primary"></i>
+                <h3 class="mb-2">150+</h3>
+                <p class="text-muted mb-0">Репетиторов</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stat-card text-center p-4">
+                <i class="fa-solid fa-user-graduate fa-3x mb-3 text-success"></i>
+                <h3 class="mb-2">500+</h3>
+                <p class="text-muted mb-0">Учеников</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stat-card text-center p-4">
+                <i class="fa-solid fa-book fa-3x mb-3 text-warning"></i>
+                <h3 class="mb-2">12</h3>
+                <p class="text-muted mb-0">Предметов</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Преимущества -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Почему выбирают StudyEasy</h2>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="feature-card h-100 p-4">
+                <div class="text-center">
+                    <i class="fa-solid fa-magnifying-glass fa-3x mb-3 text-primary"></i>
+                    <h4>Удобный поиск</h4>
+                    <p class="text-muted">Легко находите репетиторов по предметам, рейтингу и цене</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="feature-card h-100 p-4">
+                <div class="text-center">
+                    <i class="fa-solid fa-calendar-check fa-3x mb-3 text-success"></i>
+                    <h4>Гибкое расписание</h4>
+                    <p class="text-muted">Выбирайте удобное время для занятий</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="feature-card h-100 p-4">
+                <div class="text-center">
+                    <i class="fa-solid fa-star fa-3x mb-3 text-warning"></i>
+                    <h4>Рейтинг и отзывы</h4>
+                    <p class="text-muted">Выбирайте лучших по реальным оценкам учеников</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- О проекте -->
+    <div class="row mb-5">
+        <div class="col-md-6 mb-3">
+            <div class="about-card p-4">
+                <h3 class="mb-3"><i class="fa-solid fa-bullseye text-primary me-2"></i>Наша миссия</h3>
+                <p>Сделать качественное образование доступным для каждого. Мы соединяем учеников с опытными репетиторами, создавая комфортную среду для обучения.</p>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="about-card p-4">
+                <h3 class="mb-3"><i class="fa-solid fa-eye text-success me-2"></i>Наше видение</h3>
+                <p>Создать крупнейшее сообщество учеников и преподавателей, где каждый может найти идеального наставника и достичь своих целей.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Как это работает -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Как это работает</h2>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="step-card text-center p-4">
+                <div class="step-number mb-3">1</div>
+                <i class="fa-solid fa-user-plus fa-2x mb-3 text-primary"></i>
+                <h5>Регистрация</h5>
+                <p class="text-muted small">Создайте аккаунт ученика или репетитора</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="step-card text-center p-4">
+                <div class="step-number mb-3">2</div>
+                <i class="fa-solid fa-magnifying-glass fa-2x mb-3 text-success"></i>
+                <h5>Поиск</h5>
+                <p class="text-muted small">Найдите подходящего репетитора или учеников</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="step-card text-center p-4">
+                <div class="step-number mb-3">3</div>
+                <i class="fa-solid fa-calendar-plus fa-2x mb-3 text-warning"></i>
+                <h5>Запись</h5>
+                <p class="text-muted small">Запишитесь на занятие или создайте свое</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="step-card text-center p-4">
+                <div class="step-number mb-3">4</div>
+                <i class="fa-solid fa-graduation-cap fa-2x mb-3 text-info"></i>
+                <h5>Обучение</h5>
+                <p class="text-muted small">Начинайте учиться и достигать целей</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Отзыв -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="testimonial-card p-5 text-center">
+                <i class="fa-solid fa-quote-left fa-3x mb-3 opacity-50"></i>
+                <p class="lead mb-4">Благодаря StudyEasy я нашел отличного репетитора по математике и смог подготовиться к экзамену на 95 баллов!</p>
+                <div class="d-flex justify-content-center align-items-center">
+                    <i class="fa-solid fa-circle-user fa-2x me-3"></i>
+                    <div class="text-start">
+                        <h6 class="mb-0">Анна Петрова</h6>
+                        <small class="opacity-75">ученик</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Призыв к действию -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="cta-section text-center p-5">
+                <h2 class="mb-3">Готовы начать?</h2>
+                <p class="lead mb-4">Присоединяйтесь к StudyEasy сегодня и откройте новые возможности для обучения</p>
+                <a href="{% url 'register_choice' %}" class="btn btn-light btn-lg">
+                    <i class="fa-solid fa-rocket me-2"></i>Начать бесплатно
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .hero-section .btn-outline-light:hover {
+        background: white;
+        color: #667eea;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+    }
+
+    .feature-card:hover i {
+        transform: scale(1.1);
+    }
+
+    .feature-card i {
+        transition: transform 0.3s;
+    }
+
+    .about-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 15px;
+        height: 100%;
+    }
+
+    .step-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        height: 100%;
+        transition: all 0.3s;
+    }
+
+    .step-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+    }
+
+    .step-number {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        font-weight: bold;
+    }
+
+    .testimonial-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 20px;
+    }
+
+    .cta-section {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3);
+    }
+
+    .cta-section .btn-light {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .cta-section .btn-light:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255,255,255,0.3);
+    }
+
+    @media (max-width: 768px) {
+        .display-3 {
+            font-size: 2.5rem;
+        }
+
+        .hero-section {
+            padding: 2rem !important;
+        }
+
+        .step-card {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+{% endblock %}
