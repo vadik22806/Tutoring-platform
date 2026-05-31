@@ -1,0 +1,332 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Регистрация ученика{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Регистрация ученика</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="regForm">
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Имя *</label>
+                                <input type="text" name="first_name" id="first_name" class="form-control" required>
+                                <div id="first_name_feedback" class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Фамилия</label>
+                                <input type="text" name="last_name" id="last_name" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email *</label>
+                                <input type="email" name="email" id="email" class="form-control" required>
+                                <div id="email_feedback" class="invalid-feedback"></div>
+                                <div id="email_success" class="valid-feedback"></div>
+                                <div id="email_spinner" class="spinner-border spinner-border-sm text-primary mt-2" style="display: none;"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Телефон *</label>
+                                <input type="tel" name="phone" id="phone" class="form-control" required>
+                                <div id="phone_feedback" class="invalid-feedback"></div>
+                                <div id="phone_success" class="valid-feedback"></div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Пароль *</label>
+                                <input type="password" name="password" id="password" class="form-control" required>
+                                <div id="password_feedback" class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Подтверждение пароля *</label>
+                                <input type="password" name="password_confirm" id="password_confirm" class="form-control" required>
+                                <div id="password_confirm_feedback" class="invalid-feedback"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Предметы</label>
+                            <div class="border p-3 rounded" style="max-height: 200px; overflow-y: auto;">
+                                {% for value, label in form.subjects.field.choices %}
+                                <div class="form-check">
+                                    <input type="checkbox" name="subjects" value="{{ value }}" class="form-check-input" id="subj_{{ value }}">
+                                    <label class="form-check-label" for="subj_{{ value }}">{{ label }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="btn btn-primary w-100" disabled>Зарегистрироваться</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ========== ПОЛУЧАЕМ ЭЛЕМЕНТЫ ==========
+const form = document.getElementById('regForm');
+const firstName = document.getElementById('first_name');
+const email = document.getElementById('email');
+const phone = document.getElementById('phone');
+const password = document.getElementById('password');
+const passwordConfirm = document.getElementById('password_confirm');
+const submitBtn = document.getElementById('submitBtn');
+
+// ========== ФУНКЦИИ ПРОВЕРКИ ==========
+function validateName() {
+    const val = firstName.value.trim();
+    const feedback = document.getElementById('first_name_feedback');
+    if (!val) {
+        firstName.classList.add('is-invalid');
+        firstName.classList.remove('is-valid');
+        feedback.textContent = 'Имя обязательно';
+        return false;
+    }
+    firstName.classList.remove('is-invalid');
+    firstName.classList.add('is-valid');
+    feedback.textContent = '';
+    return true;
+}
+
+function validateEmailFormat(emailStr) {
+    if (!emailStr) return false;
+    const re = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    return re.test(emailStr);
+}
+
+async function validateEmail() {
+    const val = email.value.trim();
+    const feedback = document.getElementById('email_feedback');
+    const success = document.getElementById('email_success');
+    const spinner = document.getElementById('email_spinner');
+
+    if (!val) {
+        email.classList.add('is-invalid');
+        email.classList.remove('is-valid');
+        feedback.textContent = 'Email обязателен';
+        success.textContent = '';
+        return false;
+    }
+
+    if (!validateEmailFormat(val)) {
+        email.classList.add('is-invalid');
+        email.classList.remove('is-valid');
+        feedback.textContent = 'Введите корректный email (например, user@mail.ru)';
+        success.textContent = '';
+        return false;
+    }
+
+    spinner.style.display = 'inline-block';
+    try {
+        const res = await fetch(`/check-email/?email=${encodeURIComponent(val)}`);
+        const data = await res.json();
+        spinner.style.display = 'none';
+
+        if (data.exists) {
+            email.classList.add('is-invalid');
+            email.classList.remove('is-valid');
+            feedback.textContent = '❌ Пользователь с таким email уже существует';
+            success.textContent = '';
+            return false;
+        }
+
+        email.classList.remove('is-invalid');
+        email.classList.add('is-valid');
+        feedback.textContent = '';
+        success.textContent = '✓ Email доступен';
+        return true;
+
+    } catch (e) {
+        spinner.style.display = 'none';
+        console.error(e);
+        return false;
+    }
+}
+
+function validatePhoneFormat(phoneStr) {
+    if (!phoneStr) return false;
+    const cleaned = phoneStr.replace(/[\s\-\(\)]/g, '');
+    const re = /^(\+7|8)[0-9]{10}$/;
+    return re.test(cleaned);
+}
+
+async function validatePhone() {
+    const val = phone.value.trim();
+    const feedback = document.getElementById('phone_feedback');
+    const success = document.getElementById('phone_success');
+    const spinner = document.getElementById('phone_spinner');
+
+    if (!val) {
+        phone.classList.add('is-invalid');
+        phone.classList.remove('is-valid');
+        feedback.textContent = 'Телефон обязателен';
+        success.textContent = '';
+        return false;
+    }
+
+    if (!validatePhoneFormat(val)) {
+        phone.classList.add('is-invalid');
+        phone.classList.remove('is-valid');
+        feedback.textContent = '❌ Введите номер в формате +7 999 123-45-67 или 8 999 123-45-67';
+        success.textContent = '';
+        return false;
+    }
+
+    // AJAX проверка уникальности телефона
+    if (spinner) spinner.style.display = 'inline-block';
+    try {
+        const cleaned = val.replace(/[\s\-\(\)]/g, '');
+        const res = await fetch(`/check-phone/?phone=${encodeURIComponent(cleaned)}`);
+        const data = await res.json();
+        if (spinner) spinner.style.display = 'none';
+
+        if (data.exists) {
+            phone.classList.add('is-invalid');
+            phone.classList.remove('is-valid');
+            feedback.textContent = '❌ Пользователь с таким телефоном уже существует';
+            success.textContent = '';
+            return false;
+        }
+
+        phone.classList.remove('is-invalid');
+        phone.classList.add('is-valid');
+        feedback.textContent = '';
+        success.textContent = '✓ Номер доступен';
+        return true;
+
+    } catch (e) {
+        if (spinner) spinner.style.display = 'none';
+        console.error(e);
+        return false;
+    }
+}
+
+function validatePassword() {
+    const val = password.value;
+    const feedback = document.getElementById('password_feedback');
+
+    if (!val) {
+        password.classList.add('is-invalid');
+        password.classList.remove('is-valid');
+        feedback.textContent = 'Пароль обязателен';
+        return false;
+    }
+
+    if (val.length < 6) {
+        password.classList.add('is-invalid');
+        password.classList.remove('is-valid');
+        feedback.textContent = '❌ Пароль должен быть не менее 6 символов';
+        return false;
+    }
+
+    password.classList.remove('is-invalid');
+    password.classList.add('is-valid');
+    feedback.textContent = '';
+    return true;
+}
+
+function validatePasswordConfirm() {
+    const val = passwordConfirm.value;
+    const pwd = password.value;
+    const feedback = document.getElementById('password_confirm_feedback');
+
+    if (!val) {
+        passwordConfirm.classList.add('is-invalid');
+        passwordConfirm.classList.remove('is-valid');
+        feedback.textContent = 'Подтвердите пароль';
+        return false;
+    }
+
+    if (val !== pwd) {
+        passwordConfirm.classList.add('is-invalid');
+        passwordConfirm.classList.remove('is-valid');
+        feedback.textContent = '❌ Пароли не совпадают';
+        return false;
+    }
+
+    passwordConfirm.classList.remove('is-invalid');
+    passwordConfirm.classList.add('is-valid');
+    feedback.textContent = '';
+    return true;
+}
+
+// ========== ОБЩАЯ ПРОВЕРКА ==========
+async function validateForm() {
+    const nameOk = validateName();
+    const emailOk = await validateEmail();
+    const phoneOk = await validatePhone();
+    const passOk = validatePassword();
+    const confirmOk = validatePasswordConfirm();
+
+    submitBtn.disabled = !(nameOk && emailOk && phoneOk && passOk && confirmOk);
+}
+
+// ========== СОБЫТИЯ ==========
+firstName.addEventListener('input', validateForm);
+email.addEventListener('input', validateForm);
+phone.addEventListener('input', validateForm);
+password.addEventListener('input', () => {
+    validatePassword();
+    validatePasswordConfirm();
+    validateForm();
+});
+passwordConfirm.addEventListener('input', () => {
+    validatePasswordConfirm();
+    validateForm();
+});
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await validateForm();
+    if (!submitBtn.disabled) {
+        form.submit();
+    }
+});
+
+validateForm();
+</script>
+
+<style>
+    .form-control.is-valid {
+        border-color: #28a745;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 16px;
+    }
+    .form-control.is-invalid {
+        border-color: #dc3545;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 16px;
+    }
+    .valid-feedback {
+        color: #28a745;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}

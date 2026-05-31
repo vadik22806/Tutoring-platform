@@ -1,0 +1,186 @@
+{% extends 'main/layout.html' %}
+{% load static %}
+
+{% block title %}Репетиторы{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Наши репетиторы</h1>
+        <div class="filter-container">
+            <input type="text" id="searchInput" class="form-control" placeholder="🔍 Поиск по имени..." style="width: 250px;">
+        </div>
+    </div>
+
+    <div class="row" id="tutorsContainer">
+        {% for tutor in page_obj %}
+        <div class="col-md-4 mb-4 tutor-card" data-name="{{ tutor.first_name|lower }} {{ tutor.last_name|lower }}">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ tutor.first_name }} {{ tutor.last_name }}</h5>
+
+                    <p class="card-text">
+                        <strong>Email:</strong> {{ tutor.email|default:"-" }}<br>
+                        <strong>Телефон:</strong> {{ tutor.phone|default:"-" }}<br>
+                        {% if tutor.rating %}
+                        <strong>Рейтинг:</strong> {{ tutor.rating }} ⭐<br>
+                        {% endif %}
+
+                        <strong>Предметы:</strong><br>
+                        <div class="mt-2">
+                            {% if tutor.subject_names %}
+                                {% for subject_name in tutor.subject_names %}
+                                    <span class="badge bg-info">{{ subject_name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">Не указаны</span>
+                            {% endif %}
+                        </div>
+
+                        {% if tutor.bio %}
+                        <hr>
+                        <small class="text-muted">{{ tutor.bio|truncatechars:100 }}</small>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-center">Пока нет репетиторов</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Пагинация -->
+    <div id="pagination">
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">←</a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">→</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// ========== ФИЛЬТРАЦИЯ КАТАЛОГА ==========
+
+const searchInput = document.getElementById('searchInput');
+const tutorCards = document.querySelectorAll('.tutor-card');
+const pagination = document.getElementById('pagination');
+
+function filterTutors() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    let visibleCount = 0;
+
+    tutorCards.forEach(card => {
+        const name = card.dataset.name;
+        if (searchTerm === '' || name.includes(searchTerm)) {
+            card.style.display = '';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Показываем сообщение, если ничего не найдено
+    const container = document.getElementById('tutorsContainer');
+    let noResultsMsg = document.getElementById('noResultsMessage');
+
+    if (visibleCount === 0) {
+        if (!noResultsMsg) {
+            noResultsMsg = document.createElement('div');
+            noResultsMsg.id = 'noResultsMessage';
+            noResultsMsg.className = 'col-12 text-center py-5';
+            noResultsMsg.innerHTML = `
+                <i class="fa-solid fa-search fa-4x mb-3 text-muted"></i>
+                <h4>Ничего не найдено</h4>
+                <p>Попробуйте изменить поисковый запрос</p>
+            `;
+            container.appendChild(noResultsMsg);
+        }
+        // Скрываем пагинацию при отсутствии результатов
+        if (pagination) pagination.style.display = 'none';
+    } else {
+        if (noResultsMsg) noResultsMsg.remove();
+        if (pagination) pagination.style.display = '';
+    }
+}
+
+// Событие при вводе текста
+searchInput.addEventListener('input', filterTutors);
+
+// Инициализация фильтра
+document.addEventListener('DOMContentLoaded', filterTutors);
+</script>
+
+<style>
+    .filter-container {
+        min-width: 250px;
+    }
+
+    #searchInput {
+        border-radius: 20px;
+        border: 2px solid #e9ecef;
+        padding: 8px 15px;
+        transition: all 0.3s;
+    }
+
+    #searchInput:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        outline: none;
+    }
+
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .badge {
+        font-size: 11px;
+        padding: 5px 8px;
+        margin-right: 3px;
+    }
+
+    .pagination {
+        margin-top: 20px;
+    }
+
+    .page-link {
+        border-radius: 8px;
+        margin: 0 2px;
+        color: #007bff;
+    }
+
+    .page-item.active .page-link {
+        background: linear-gradient(135deg, #007bff 0%, #00d4ff 100%);
+        border-color: transparent;
+    }
+</style>
+{% endblock %}

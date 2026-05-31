@@ -1,0 +1,46 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Добавление предмета{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Добавление нового предмета</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Название предмета</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Уровни</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="levels" value="school" id="level_school">
+                                <label class="form-check-label" for="level_school">Школьный</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="levels" value="university" id="level_university">
+                                <label class="form-check-label" for="level_university">Университетский</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="levels" value="adult" id="level_adult">
+                                <label class="form-check-label" for="level_adult">Для взрослых</label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Добавить</button>
+                        <a href="{% url 'subjects_list' %}" class="btn btn-secondary">Отмена</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

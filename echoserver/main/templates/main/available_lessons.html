@@ -1,0 +1,263 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Доступные занятия{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Доступные занятия</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Фильтры по предметам -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group flex-wrap" role="group" aria-label="Фильтры по предметам">
+                <button class="btn btn-outline-primary filter-btn active" data-filter="all">
+                    <i class="fa-solid fa-list"></i> Все
+                </button>
+                {% for subject in subjects %}
+                <button class="btn btn-outline-success filter-btn" data-filter="{{ subject.name|lower }}">
+                    <i class="fa-solid fa-book"></i> {{ subject.name }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% if lessons %}
+        <div class="row" id="lessonsContainer">
+            {% for lesson in lessons %}
+            <div class="col-md-4 mb-4 lesson-card"
+                 data-subject="{{ lesson.subject_name|lower }}"
+                 data-lesson-id="{{ lesson.id }}">
+                <div class="card h-100 {% if lesson.is_saved %}border-warning{% endif %}">
+                    <!-- Шапка с предметом и индикатором избранного -->
+                    <div class="card-header" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); position: relative;">
+                        <h5 class="card-title mb-0 text-white">{{ lesson.subject_name }}</h5>
+                        {% if lesson.is_saved %}
+                        <span class="position-absolute top-0 end-0 badge bg-warning m-2">
+                            <i class="fa-solid fa-bookmark"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-body">
+                        <p class="card-text">
+                            <strong><i class="fa-solid fa-chalkboard-user"></i> Репетитор:</strong>
+                            {{ lesson.tutor.first_name }} {{ lesson.tutor.last_name }}<br>
+
+                            {% if lesson.tutor.rating %}
+                                <strong><i class="fa-solid fa-star text-warning"></i> Рейтинг:</strong>
+                                {{ lesson.tutor.rating }} ⭐<br>
+                            {% endif %}
+
+                            <strong><i class="fa-solid fa-calendar"></i> Дата:</strong>
+                            {{ lesson.date|date:"d.m.Y H:i" }}<br>
+
+                            <strong><i class="fa-solid fa-clock"></i> Длительность:</strong>
+                            {{ lesson.duration }} мин<br>
+
+                            <strong><i class="fa-solid fa-tag"></i> Цена:</strong>
+                            <span class="fw-bold text-success">{{ lesson.price }} ₽</span>
+                        </p>
+                    </div>
+
+                    <div class="card-footer p-2">
+                        {% if user.is_authenticated and user.role == 'student' %}
+                            <div class="d-flex align-items-center justify-content-end gap-1">
+                                {% if lesson.is_saved %}
+                                    <a href="{% url 'unsave_lesson' lesson.id %}?next={{ request.path }}"
+                                       class="btn btn-sm btn-outline-warning py-0 px-2"
+                                       style="font-size: 12px; line-height: 26px;"
+                                       onclick="return confirm('Убрать из избранного?')">
+                                        <i class="fa-solid fa-bookmark"></i> В избранном
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'save_lesson' lesson.id %}?next={{ request.path }}"
+                                       class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                       style="font-size: 12px; line-height: 26px;">
+                                        <i class="fa-regular fa-bookmark"></i> Отложить
+                                    </a>
+                                {% endif %}
+
+                                <a href="{% url 'book_lesson' lesson.id %}?next={{ request.path }}"
+                                   class="btn btn-sm btn-success py-0 px-2"
+                                   style="font-size: 12px; line-height: 26px;"
+                                   onclick="return confirm('Записаться на это занятие?')">
+                                    <i class="fa-solid fa-calendar-check"></i> Записаться
+                                </a>
+                            </div>
+                        {% elif not user.is_authenticated %}
+                            <a href="{% url 'login_choice' %}" class="btn btn-primary w-100 py-1" style="font-size: 13px;">
+                                <i class="fa-solid fa-sign-in-alt"></i> Войти для записи
+                            </a>
+                        {% else %}
+                            <button class="btn btn-secondary w-100 py-1" style="font-size: 13px;" disabled>
+                                <i class="fa-solid fa-ban"></i> Только для учеников
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center py-5">
+            <i class="fa-solid fa-calendar-xmark fa-4x mb-3"></i>
+            <h4>Нет доступных занятий</h4>
+            <p>Попробуйте зайти позже</p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .card.border-warning {
+        border: 2px solid #ffc107 !important;
+    }
+
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+        padding: 12px 15px;
+    }
+
+    .card-header h5 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 16px;
+    }
+
+    .card-body {
+        padding: 15px;
+    }
+
+    .card-body p {
+        margin-bottom: 5px;
+        font-size: 13px;
+    }
+
+    .card-footer {
+        background: white;
+        border-top: 1px solid #f0f0f0;
+        border-radius: 0 0 15px 15px !important;
+        padding: 8px 12px;
+    }
+
+    .btn-group {
+        gap: 3px;
+    }
+
+    .filter-btn {
+        border-radius: 20px;
+        margin: 2px;
+        font-size: 13px;
+        padding: 6px 12px;
+        transition: all 0.3s;
+    }
+
+    .filter-btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .filter-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .badge {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+
+    .text-success {
+        color: #28a745 !important;
+    }
+
+    @media (max-width: 768px) {
+        .filter-btn {
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+
+        .btn-group {
+            flex-wrap: wrap;
+        }
+
+        .card-footer .d-flex {
+            flex-wrap: wrap;
+            justify-content: center !important;
+            gap: 5px;
+        }
+
+        .btn-sm {
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const lessonCards = document.querySelectorAll('.lesson-card');
+
+    // Фильтрация
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+
+            const filter = this.dataset.filter;
+
+            lessonCards.forEach(card => {
+                const subject = card.dataset.subject;
+                card.style.display = (filter === 'all' || subject === filter) ? '' : 'none';
+            });
+
+            // Показываем сообщение, если нет видимых карточек
+            const visibleCards = Array.from(lessonCards).filter(
+                card => card.style.display !== 'none'
+            ).length;
+
+            const container = document.getElementById('lessonsContainer');
+            let noResultsMsg = document.getElementById('noResultsMessage');
+
+            if (visibleCards === 0) {
+                if (!noResultsMsg) {
+                    noResultsMsg = document.createElement('div');
+                    noResultsMsg.id = 'noResultsMessage';
+                    noResultsMsg.className = 'col-12 text-center py-5';
+                    noResultsMsg.innerHTML = `
+                        <i class="fa-solid fa-search fa-4x mb-3 text-muted"></i>
+                        <h5>Нет занятий по выбранному предмету</h5>
+                        <p>Попробуйте выбрать другой фильтр</p>
+                    `;
+                    container.appendChild(noResultsMsg);
+                }
+            } else if (noResultsMsg) {
+                noResultsMsg.remove();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

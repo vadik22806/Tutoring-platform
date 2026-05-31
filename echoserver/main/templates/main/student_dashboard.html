@@ -1,0 +1,466 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Личный кабинет ученика{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Приветствие с кнопкой редактирования -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card welcome-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2>👋 Привет, {{ user.first_name }} {{ user.last_name }}!</h2>
+                        <p class="lead mb-0">Рады видеть тебя снова. Готов к новым знаниям?</p>
+                    </div>
+                    <a href="{% url 'edit_profile' %}" class="btn btn-light">
+                        <i class="fa-solid fa-pen"></i> Редактировать профиль
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Навигация по разделам -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group w-100" role="group">
+                <a href="#my-lessons" class="btn btn-outline-primary">
+                    <i class="fa-solid fa-calendar-check"></i> Мои занятия
+                </a>
+                <a href="{% url 'saved_lessons' %}" class="btn btn-outline-warning">
+                    <i class="fa-solid fa-bookmark"></i> Избранное
+                </a>
+                <a href="{% url 'my_bookings' %}" class="btn btn-outline-info">
+                    <i class="fa-solid fa-clock-rotate-left"></i> История
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="fa-solid fa-calendar-check fa-3x mb-3 text-primary"></i>
+                    <h3>{{ stats.total }}</h3>
+                    <p class="text-muted">Всего записей</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="fa-solid fa-clock fa-3x mb-3 text-success"></i>
+                    <h3>{{ my_lessons|length }}</h3>
+                    <p class="text-muted">Предстоит</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="fa-solid fa-bookmark fa-3x mb-3 text-warning"></i>
+                    <h3 id="savedCount">{{ saved_count }}</h3>
+                    <p class="text-muted">В избранном</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="fa-solid fa-star fa-3x mb-3 text-info"></i>
+                    <h3>{{ stats.interests }}</h3>
+                    <p class="text-muted">Предметов</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Мои предстоящие занятия -->
+    <div class="row mb-4" id="my-lessons">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4><i class="fa-solid fa-calendar-check me-2"></i>Мои предстоящие занятия</h4>
+                    <a href="{% url 'my_bookings' %}" class="btn btn-sm btn-outline-secondary">
+                        Все записи →
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if my_lessons %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Предмет</th>
+                                        <th>Репетитор</th>
+                                        <th>Дата и время</th>
+                                        <th>Длительность</th>
+                                        <th>Цена</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lesson in my_lessons %}
+                                    <tr>
+                                        <td><span class="badge bg-info">{{ lesson.subject_name }}</span></td>
+                                        <td>{{ lesson.tutor.first_name }} {{ lesson.tutor.last_name }}</td>
+                                        <td>{{ lesson.date|date:"d.m.Y H:i" }}</td>
+                                        <td>{{ lesson.duration }} мин</td>
+                                        <td>{{ lesson.price }} ₽</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fa-solid fa-calendar-xmark fa-4x mb-3 text-muted"></i>
+                            <p class="text-muted">У вас пока нет предстоящих занятий</p>
+                            <a href="{% url 'available_lessons' %}" class="btn btn-primary">
+                                <i class="fa-solid fa-magnifying-glass"></i> Найти занятия
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Отложенные занятия (краткий обзор) -->
+    {% if saved_lessons %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center bg-warning bg-opacity-10">
+                    <h4><i class="fa-solid fa-bookmark text-warning me-2"></i>Отложенные занятия</h4>
+                    <a href="{% url 'saved_lessons' %}" class="btn btn-sm btn-warning">
+                        Перейти в корзину →
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for lesson in saved_lessons|slice:":3" %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card lesson-card h-100 border-warning">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ lesson.subject_name }}</h5>
+                                    <p class="card-text">
+                                        <strong>Репетитор:</strong> {{ lesson.tutor.first_name }} {{ lesson.tutor.last_name }}<br>
+                                        <strong>Дата:</strong> {{ lesson.date|date:"d.m.Y H:i" }}<br>
+                                        <strong>Цена:</strong> {{ lesson.price }} ₽
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <a href="{% url 'book_lesson' lesson.id %}?next={% url 'student_dashboard' %}"
+                                           class="btn btn-success btn-sm flex-grow-1"
+                                           onclick="return confirm('Записаться на это занятие?')">
+                                            <i class="fa-solid fa-check"></i> Записаться
+                                        </a>
+                                        <a href="{% url 'unsave_lesson' lesson.id %}?next={% url 'student_dashboard' %}"
+                                           class="btn btn-outline-danger btn-sm unsave-btn"
+                                           data-lesson-id="{{ lesson.id }}">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if saved_lessons|length > 3 %}
+                    <div class="text-center mt-3">
+                        <a href="{% url 'saved_lessons' %}" class="btn btn-outline-warning">
+                            Показать все ({{ saved_lessons|length }})
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Доступные занятия с кнопками "Отложить" без перехода -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4><i class="fa-solid fa-bolt me-2 text-success"></i>Доступные занятия</h4>
+                    <a href="{% url 'available_lessons' %}" class="btn btn-sm btn-outline-success">
+                        Все занятия →
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if available_lessons %}
+                        <div class="row">
+                            {% for lesson in available_lessons %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card lesson-card h-100" id="lesson-card-{{ lesson.id }}">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ lesson.subject_name }}</h5>
+                                        <p class="card-text">
+                                            <strong>Репетитор:</strong> {{ lesson.tutor.first_name }} {{ lesson.tutor.last_name }}<br>
+                                            <strong>Дата:</strong> {{ lesson.date|date:"d.m.Y H:i" }}<br>
+                                            <strong>Длительность:</strong> {{ lesson.duration }} мин<br>
+                                            <strong>Цена:</strong> <span class="lesson-price">{{ lesson.price }}</span> ₽
+                                        </p>
+                                        <div class="d-flex gap-2">
+                                            <a href="{% url 'book_lesson' lesson.id %}?next={% url 'student_dashboard' %}"
+                                               class="btn btn-success btn-sm flex-grow-1"
+                                               onclick="return confirm('Записаться на это занятие?')">
+                                                <i class="fa-solid fa-check"></i> Записаться
+                                            </a>
+                                            <button class="btn btn-outline-warning btn-sm save-btn"
+                                                    data-lesson-id="{{ lesson.id }}"
+                                                    data-lesson-name="{{ lesson.subject_name }}">
+                                                <i class="fa-regular fa-bookmark"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-3">Нет доступных занятий</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Рекомендуемые репетиторы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fa-solid fa-star me-2 text-warning"></i>Рекомендуемые репетиторы</h4>
+                </div>
+                <div class="card-body">
+                    {% if recommended_tutors %}
+                        <div class="row">
+                            {% for tutor in recommended_tutors %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card tutor-card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ tutor.first_name }} {{ tutor.last_name }}</h5>
+                                        <p class="card-text">
+                                            <strong>Рейтинг:</strong>
+                                            {% if tutor.rating %}
+                                                {{ tutor.rating }} ⭐
+                                            {% else %}
+                                                Нет оценок
+                                            {% endif %}
+                                            <br>
+                                            <strong>Совпадающие предметы:</strong><br>
+                                            {% if tutor.common_subjects %}
+                                                {% for subject in tutor.common_subjects %}
+                                                    <span class="badge bg-success">{{ subject }}</span>
+                                                {% endfor %}
+                                            {% endif %}
+                                            <br><br>
+                                            <strong>Все предметы:</strong><br>
+                                            {% if tutor.subject_names %}
+                                                {% for subject in tutor.subject_names|slice:":3" %}
+                                                    <span class="badge bg-info">{{ subject }}</span>
+                                                {% endfor %}
+                                                {% if tutor.subject_names|length > 3 %}
+                                                    <span class="badge bg-secondary">+{{ tutor.subject_names|length|add:"-3" }}</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </p>
+                                        <a href="{% url 'tutors_list' %}" class="btn btn-outline-primary w-100">
+                                            Все репетиторы
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fa-solid fa-users-slash fa-4x mb-3 text-muted"></i>
+                            <p class="text-muted">Пока нет репетиторов по вашим предметам</p>
+                            <a href="{% url 'tutors_list' %}" class="btn btn-primary">
+                                Посмотреть всех репетиторов
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSRF Token для AJAX -->
+<form id="csrf-form" style="display: none;">
+    {% csrf_token %}
+</form>
+
+<style>
+    .welcome-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+    }
+
+    .welcome-card .btn-light {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        backdrop-filter: blur(5px);
+    }
+
+    .welcome-card .btn-light:hover {
+        background: rgba(255,255,255,0.3);
+    }
+
+    .stat-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .lesson-card, .tutor-card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+    }
+
+    .lesson-card:hover, .tutor-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+    }
+
+    .card-header {
+        background: white;
+        border-bottom: 2px solid #f0f0f0;
+        font-weight: 600;
+    }
+
+    .badge {
+        font-size: 11px;
+        padding: 5px 8px;
+        margin-right: 3px;
+    }
+
+    .btn-group {
+        gap: 5px;
+    }
+
+    .btn-group .btn {
+        border-radius: 10px !important;
+    }
+
+    @media (max-width: 768px) {
+        .welcome-card h2 {
+            font-size: 20px;
+        }
+
+        .welcome-card .btn {
+            font-size: 12px;
+            padding: 5px 10px;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Получаем CSRF токен
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    const csrfToken = csrfInput ? csrfInput.value : '';
+
+    // Обработчики для кнопок "Сохранить в избранное"
+    document.querySelectorAll('.save-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const lessonId = this.dataset.lessonId;
+            const lessonName = this.dataset.lessonName || 'Занятие';
+            const button = this;
+
+            fetch(`/lessons/${lessonId}/save/?next={% url 'student_dashboard' %}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.redirected) {
+                    // Если сервер вернул редирект, переходим по нему
+                    window.location.href = response.url;
+                } else {
+                    // Показываем сообщение об успехе
+                    alert(`"${lessonName}" добавлено в избранное`);
+
+                    // Меняем иконку и стиль кнопки
+                    button.innerHTML = '<i class="fa-solid fa-bookmark"></i>';
+                    button.classList.remove('btn-outline-warning');
+                    button.classList.add('btn-warning');
+
+                    // Увеличиваем счетчик в статистике
+                    const savedCountEl = document.getElementById('savedCount');
+                    if (savedCountEl) {
+                        savedCountEl.textContent = parseInt(savedCountEl.textContent) + 1;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при добавлении в избранное');
+            });
+        });
+    });
+
+    // Обработчики для кнопок "Удалить из избранного"
+    document.querySelectorAll('.unsave-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const lessonId = this.dataset.lessonId;
+            const button = this;
+            const card = this.closest('.col-md-4');
+
+            if (!confirm('Убрать из избранного?')) return;
+
+            fetch(`/lessons/${lessonId}/unsave/?next={% url 'student_dashboard' %}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    alert('Занятие убрано из избранного');
+
+                    // Удаляем карточку из DOM
+                    if (card) {
+                        card.remove();
+                    }
+
+                    // Уменьшаем счетчик в статистике
+                    const savedCountEl = document.getElementById('savedCount');
+                    if (savedCountEl) {
+                        savedCountEl.textContent = Math.max(0, parseInt(savedCountEl.textContent) - 1);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

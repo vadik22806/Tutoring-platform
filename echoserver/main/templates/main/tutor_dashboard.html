@@ -1,0 +1,545 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Личный кабинет репетитора{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Приветствие с кнопкой редактирования -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card welcome-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2>👋 Здравствуйте, {{ user.first_name }} {{ user.last_name }}!</h2>
+                        <p class="lead mb-0">Рады видеть вас в нашем портале.</p>
+                    </div>
+                    <a href="{% url 'edit_profile' %}" class="btn btn-light">
+                        <i class="fa-solid fa-pen"></i> Редактировать профиль
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="fa-solid fa-calendar-check fa-3x mb-3 text-primary"></i>
+                    <h3>{{ stats.total }}</h3>
+                    <p class="text-muted">Всего занятий</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="fa-solid fa-star fa-3x mb-3 text-warning"></i>
+                    <h3>{% if user.rating %}{{ user.rating }}{% else %}0{% endif %}</h3>
+                    <p class="text-muted">Рейтинг</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="fa-solid fa-book fa-3x mb-3 text-success"></i>
+                    <h3>{{ tutor_subjects|length }}</h3>
+                    <p class="text-muted">Предметов</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <i class="fa-solid fa-users fa-3x mb-3 text-info"></i>
+                    <h3>{{ stats.available }}</h3>
+                    <p class="text-muted">Доступно занятий</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Кнопка добавления занятия -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-3">Добавить новое занятие</h4>
+                    <p class="text-muted mb-3">Создайте новое занятие, чтобы ученики могли на него записаться</p>
+                    <a href="{% url 'add_lesson' %}" class="btn btn-success btn-lg">
+                        <i class="fa-solid fa-plus"></i> Добавить занятие
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Мои предметы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>📖 Мои предметы</h4>
+                </div>
+                <div class="card-body">
+                    {% if tutor_subjects %}
+                        {% for subject in tutor_subjects %}
+                            <span class="badge bg-info subject-badge">{{ subject.name }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">У вас нет добавленных предметов. Обратитесь к администратору.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Мои занятия -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4>📚 Мои занятия</h4>
+                </div>
+                <div class="card-body">
+                    {% if my_lessons %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Предмет</th>
+                                        <th>Дата и время</th>
+                                        <th>Длительность</th>
+                                        <th>Цена</th>
+                                        <th>Ученик</th>
+                                        <th>Статус</th>
+                                        <th style="min-width: 100px;">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lesson in my_lessons %}
+                                    <tr>
+                                        <td><span class="badge bg-info">{{ lesson.subject_name }}</span></td>
+                                        <td>{{ lesson.date|date:"d.m.Y H:i" }}</td>
+                                        <td>{{ lesson.duration }} мин</td>
+                                        <td class="fw-bold text-success">{{ lesson.price }} ₽</td>
+                                        <td>
+                                            {% if lesson.student %}
+                                                {{ lesson.student.first_name }} {{ lesson.student.last_name }}
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if lesson.status == 'available' %}
+                                                <span class="badge bg-success">Доступно</span>
+                                            {% elif lesson.status == 'booked' %}
+                                                <span class="badge bg-warning text-dark">Забронировано</span>
+                                            {% elif lesson.status == 'completed' %}
+                                                <span class="badge bg-secondary">Завершено</span>
+                                            {% elif lesson.status == 'cancelled' %}
+                                                <span class="badge bg-danger">Отменено</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-1 action-buttons">
+                                                {% if lesson.status == 'available' %}
+                                                    <a href="{% url 'edit_lesson' lesson.id %}" class="btn btn-sm btn-warning action-btn" title="Редактировать">
+                                                        <i class="fa-solid fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'delete_lesson' lesson.id %}" class="btn btn-sm btn-danger action-btn"
+                                                       onclick="return confirm('Удалить занятие?')" title="Удалить">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </a>
+                                                {% elif lesson.status == 'booked' %}
+                                                    <a href="{% url 'complete_lesson' lesson.id %}" class="btn btn-sm btn-success action-btn"
+                                                       onclick="return confirm('Отметить занятие как завершенное?')" title="Завершить">
+                                                        <i class="fa-solid fa-check"></i>
+                                                    </a>
+                                                    <a href="{% url 'cancel_lesson' lesson.id %}" class="btn btn-sm btn-danger action-btn"
+                                                       onclick="return confirm('Отменить занятие?')" title="Отменить">
+                                                        <i class="fa-solid fa-ban"></i>
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fa-solid fa-calendar-xmark fa-4x mb-3 text-muted"></i>
+                            <p class="text-muted">У вас пока нет занятий</p>
+                            <a href="{% url 'add_lesson' %}" class="btn btn-primary">
+                                Создать первое занятие
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ===== ОСНОВНЫЕ СТИЛИ ===== */
+    .welcome-card {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(40, 167, 69, 0.2);
+    }
+
+    .welcome-card .btn-light {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        backdrop-filter: blur(5px);
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+
+    .welcome-card .btn-light:hover {
+        background: rgba(255,255,255,0.3);
+    }
+
+    .welcome-card h2 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 28px;
+    }
+
+    .welcome-card .lead {
+        font-size: 16px;
+        opacity: 0.95;
+        margin-bottom: 0;
+    }
+
+    /* ===== СТАТИСТИКА ===== */
+    .stat-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        background: white;
+        height: 100%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.12);
+    }
+
+    .stat-card .card-body {
+        padding: 25px 15px;
+    }
+
+    .stat-card i {
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover i {
+        transform: scale(1.1);
+    }
+
+    .stat-card h3 {
+        font-size: 32px;
+        font-weight: 700;
+        margin: 10px 0 5px;
+        color: #343a40;
+    }
+
+    .stat-card p {
+        color: #6c757d;
+        font-size: 14px;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    /* ===== ЗАГОЛОВКИ КАРТОЧЕК ===== */
+    .card-header {
+        background: white;
+        border-bottom: 2px solid #f0f0f0;
+        font-weight: 600;
+        padding: 15px 20px;
+    }
+
+    .card-header h4 {
+        margin: 0;
+        font-size: 18px;
+        color: #495057;
+    }
+
+    .card-header h4 i {
+        margin-right: 8px;
+        color: #28a745;
+    }
+
+    /* ===== БЕЙДЖИ ===== */
+    .subject-badge {
+        font-size: 14px;
+        padding: 8px 15px;
+        margin: 0 5px 10px 0;
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        border-radius: 20px;
+        display: inline-block;
+        color: white;
+        font-weight: 500;
+        box-shadow: 0 2px 5px rgba(23, 162, 184, 0.3);
+        transition: all 0.2s ease;
+    }
+
+    .subject-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 10px rgba(23, 162, 184, 0.4);
+    }
+
+    .badge {
+        font-size: 12px;
+        padding: 5px 10px;
+        border-radius: 12px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+    }
+
+    .badge.bg-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    }
+
+    .badge.bg-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #ffa000 100%) !important;
+        color: #000 !important;
+    }
+
+    .badge.bg-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%) !important;
+    }
+
+    .badge.bg-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+    }
+
+    .badge.bg-info {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;
+        color: white;
+    }
+
+    /* ===== ТАБЛИЦА ===== */
+    .table {
+        margin: 0;
+    }
+
+    .table th {
+        border-top: none;
+        color: #495057;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 15px 10px;
+        background: #f8f9fa;
+    }
+
+    .table td {
+        padding: 15px 10px;
+        vertical-align: middle;
+        color: #495057;
+        font-size: 14px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+        transition: background-color 0.2s ease;
+    }
+
+    /* ===== КНОПКА ДОБАВЛЕНИЯ ===== */
+    .btn-success.btn-lg {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 12px 30px;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .btn-success.btn-lg:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+    }
+
+    .btn-success.btn-lg i {
+        margin-right: 8px;
+    }
+
+    /* ===== КНОПКИ ДЕЙСТВИЙ ===== */
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+        justify-content: flex-start;
+        align-items: center;
+    }
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        border: none;
+        color: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .action-btn i {
+        font-size: 14px;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 10px rgba(0,0,0,0.15);
+    }
+
+    .action-btn:active {
+        transform: translateY(0);
+    }
+
+    /* Специфичные цвета для кнопок */
+    .btn-warning.action-btn {
+        background: linear-gradient(135deg, #ffc107 0%, #ffa000 100%);
+    }
+
+    .btn-danger.action-btn {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    }
+
+    .btn-success.action-btn {
+        background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+    }
+
+    /* ===== КНОПКА "ВСЕ ЗАНЯТИЯ" ===== */
+    .btn-outline-success {
+        border: 2px solid #28a745;
+        border-radius: 8px;
+        padding: 5px 12px;
+        font-size: 13px;
+        transition: all 0.3s;
+    }
+
+    .btn-outline-success:hover {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border-color: transparent;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+    }
+
+    /* ===== КАРТОЧКА ПУСТОГО СОСТОЯНИЯ ===== */
+    .text-center.py-4 i {
+        color: #dee2e6;
+        transition: transform 0.3s ease;
+    }
+
+    .text-center.py-4:hover i {
+        transform: scale(1.1);
+    }
+
+    .text-center.py-4 p {
+        color: #6c757d;
+        font-size: 16px;
+        margin: 15px 0;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0069d9 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+    }
+
+    /* ===== АДАПТАЦИЯ ===== */
+    @media (max-width: 992px) {
+        .stat-card h3 {
+            font-size: 28px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .welcome-card h2 {
+            font-size: 20px;
+        }
+
+        .welcome-card .btn-light {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .stat-card h3 {
+            font-size: 24px;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .action-btn {
+            width: 28px;
+            height: 28px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .table td {
+            padding: 8px 5px;
+        }
+
+        .badge {
+            font-size: 10px;
+        }
+
+        .action-btn {
+            width: 24px;
+            height: 24px;
+        }
+    }
+
+    /* ===== АНИМАЦИИ ===== */
+    .card {
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}

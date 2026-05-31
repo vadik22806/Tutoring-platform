@@ -1,0 +1,346 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Редактирование профиля{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Редактирование профиля</h3>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Личные данные -->
+                        <h5 class="mb-3">Личные данные</h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                                    {{ form.first_name.label }} *
+                                </label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.first_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                                    {{ form.last_name.label }}
+                                </label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.last_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Контактные данные -->
+                        <h5 class="mb-3 mt-4">Контактные данные</h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">
+                                    {{ form.email.label }}
+                                </label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.email.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">Email используется для входа</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.phone.id_for_label }}" class="form-label">
+                                    {{ form.phone.label }}
+                                </label>
+                                {{ form.phone }}
+                                {% if form.phone.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.phone.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- О себе (только для репетиторов) -->
+                        {% if user.role == 'tutor' %}
+                        <h5 class="mb-3 mt-4">О себе</h5>
+                        <div class="mb-3">
+                            <label for="{{ form.bio.id_for_label }}" class="form-label">
+                                {{ form.bio.label }}
+                            </label>
+                            {{ form.bio }}
+                            {% if form.bio.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.bio.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Выбор предметов -->
+                        <h5 class="mb-3 mt-4">
+                            {% if user.role == 'tutor' %}
+                                Предметы для преподавания
+                            {% else %}
+                                Интересующие предметы
+                            {% endif %}
+                        </h5>
+
+                        <div class="mb-3">
+                            <div class="subjects-container border p-3 rounded" style="max-height: 250px; overflow-y: auto;">
+                                {% for value, label in form.subjects.field.choices %}
+                                <div class="form-check">
+                                    <input type="checkbox"
+                                           name="subjects"
+                                           value="{{ value }}"
+                                           class="form-check-input"
+                                           id="subject_{{ value }}"
+                                           {% if value in form.subjects.value %}checked{% endif %}>
+                                    <label class="form-check-label" for="subject_{{ value }}">
+                                        {{ label }}
+                                    </label>
+                                </div>
+                                {% empty %}
+                                <p class="text-muted">Нет доступных предметов</p>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">
+                                {% if user.role == 'tutor' %}
+                                    Выберите предметы, которые вы преподаете
+                                {% else %}
+                                    Выберите предметы, которые вас интересуют
+                                {% endif %}
+                            </div>
+                            {% if form.subjects.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.subjects.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Кнопки -->
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fa-solid fa-save"></i> Сохранить изменения
+                            </button>
+                            <a href="{% if user.role == 'student' %}{% url 'student_dashboard' %}{% else %}{% url 'tutor_dashboard' %}{% endif %}"
+                               class="btn btn-secondary">
+                                <i class="fa-solid fa-times"></i> Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Подсказка по безопасности -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fa-solid fa-shield-alt text-primary me-2"></i>
+                        Безопасность
+                    </h5>
+                    <p class="card-text text-muted">
+                        Для изменения пароля обратитесь к администратору или используйте функцию восстановления пароля.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg,
+            {% if user.role == 'student' %}#007bff, #00d4ff
+            {% elif user.role == 'tutor' %}#28a745, #20c997
+            {% else %}#667eea, #764ba2{% endif %});
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 20px;
+    }
+
+    .card-header h3 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .form-control {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 10px 15px;
+        transition: all 0.3s;
+    }
+
+    .form-control:focus {
+        border-color: {% if user.role == 'student' %}#007bff{% elif user.role == 'tutor' %}#28a745{% else %}#667eea{% endif %};
+        box-shadow: 0 0 0 3px
+            {% if user.role == 'student' %}rgba(0, 123, 255, 0.1)
+            {% elif user.role == 'tutor' %}rgba(40, 167, 69, 0.1)
+            {% else %}rgba(102, 126, 234, 0.1){% endif %};
+    }
+
+    textarea.form-control {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg,
+            {% if user.role == 'student' %}#007bff, #00d4ff
+            {% elif user.role == 'tutor' %}#28a745, #20c997
+            {% else %}#667eea, #764ba2{% endif %});
+        border: none;
+        padding: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px
+            {% if user.role == 'student' %}rgba(0, 123, 255, 0.3)
+            {% elif user.role == 'tutor' %}rgba(40, 167, 69, 0.3)
+            {% else %}rgba(102, 126, 234, 0.3){% endif %};
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        border: none;
+        padding: 12px 25px;
+        font-size: 16px;
+        border-radius: 10px;
+        transition: all 0.3s;
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+    }
+
+    h5 {
+        color: {% if user.role == 'student' %}#007bff
+               {% elif user.role == 'tutor' %}#28a745
+               {% else %}#667eea{% endif %};
+        font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .subjects-container {
+        background: #f8f9fa;
+        border: 2px solid #e9ecef !important;
+        border-radius: 10px;
+    }
+
+    .form-check {
+        padding: 8px 12px 8px 35px;
+        margin: 0;
+        border-radius: 6px;
+        transition: background-color 0.2s;
+    }
+
+    .form-check:hover {
+        background-color:
+            {% if user.role == 'student' %}rgba(0, 123, 255, 0.05)
+            {% elif user.role == 'tutor' %}rgba(40, 167, 69, 0.05)
+            {% else %}rgba(102, 126, 234, 0.05){% endif %};
+    }
+
+    .form-check-input {
+        margin-left: -25px;
+        cursor: pointer;
+    }
+
+    .form-check-input:checked {
+        background-color: {% if user.role == 'student' %}#007bff
+                         {% elif user.role == 'tutor' %}#28a745
+                         {% else %}#667eea{% endif %};
+        border-color: {% if user.role == 'student' %}#007bff
+                     {% elif user.role == 'tutor' %}#28a745
+                     {% else %}#667eea{% endif %};
+    }
+
+    .form-check-label {
+        cursor: pointer;
+        font-size: 15px;
+        color: #495057;
+    }
+
+    .text-danger {
+        font-size: 14px;
+        margin-top: 5px;
+    }
+
+    .form-text {
+        font-size: 13px;
+        color: #6c757d;
+        margin-top: 8px;
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: 10px;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 10px;
+            font-size: 14px;
+        }
+    }
+</style>
+{% endblock %}

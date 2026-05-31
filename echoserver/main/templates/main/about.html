@@ -1,0 +1,235 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}О нас{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card about-header">
+                <div class="card-body text-center">
+                    <h1 class="display-4 mb-3">О проекте StudyEasy</h1>
+                    <p class="lead">Платформа для поиска репетиторов и организации онлайн-занятий</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Миссия и цели -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card mission-card h-100">
+                <div class="card-body">
+                    <h3><i class="fa-solid fa-bullseye text-primary me-2"></i> Наша миссия</h3>
+                    <p class="mt-3">Сделать качественное образование доступным для каждого. Мы соединяем учеников с опытными репетиторами, создавая комфортную среду для обучения.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card goal-card h-100">
+                <div class="card-body">
+                    <h3><i class="fa-solid fa-star text-warning me-2"></i> Наши цели</h3>
+                    <ul class="mt-3 list-unstyled">
+                        <li class="mb-2"><i class="fa-solid fa-check text-success me-2"></i> Помочь ученикам найти идеального репетитора</li>
+                        <li class="mb-2"><i class="fa-solid fa-check text-success me-2"></i> Дать репетиторам удобный инструмент для работы</li>
+                        <li class="mb-2"><i class="fa-solid fa-check text-success me-2"></i> Создать сообщество увлеченных обучением людей</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Преимущества -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Почему выбирают StudyEasy</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center">
+                                <i class="fa-solid fa-magnifying-glass fa-3x mb-3 text-primary"></i>
+                                <h5>Удобный поиск</h5>
+                                <p class="text-muted">Легко находите репетиторов по предметам, рейтингу и цене</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center">
+                                <i class="fa-solid fa-calendar-check fa-3x mb-3 text-success"></i>
+                                <h5>Гибкое расписание</h5>
+                                <p class="text-muted">Выбирайте удобное время для занятий</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center">
+                                <i class="fa-solid fa-star fa-3x mb-3 text-warning"></i>
+                                <h5>Рейтинг и отзывы</h5>
+                                <p class="text-muted">Выбирайте лучших по реальным оценкам учеников</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Для кого -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card for-students">
+                <div class="card-body">
+                    <h3><i class="fa-solid fa-user-graduate me-2"></i> Для учеников</h3>
+                    <ul class="mt-3">
+                        <li class="mb-2">✓ Большой выбор репетиторов по разным предметам</li>
+                        <li class="mb-2">✓ Просмотр рейтинга и отзывов</li>
+                        <li class="mb-2">✓ Удобная запись на занятия</li>
+                        <li class="mb-2">✓ Личный кабинет с историей занятий</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card for-tutors">
+                <div class="card-body">
+                    <h3><i class="fa-solid fa-chalkboard-user me-2"></i> Для репетиторов</h3>
+                    <ul class="mt-3">
+                        <li class="mb-2">✓ Создание профиля с указанием предметов</li>
+                        <li class="mb-2">✓ Управление расписанием занятий</li>
+                        <li class="mb-2">✓ Просмотр статистики и рейтинга</li>
+                        <li class="mb-2">✓ Поиск новых учеников</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контакты -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card contact-card">
+                <div class="card-header">
+                    <h3>Свяжитесь с нами</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fa-solid fa-envelope fa-2x text-primary me-3"></i>
+                                <div>
+                                    <h6 class="mb-0">Email</h6>
+                                    <p class="mb-0">support@studyeasy.ru</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fa-solid fa-phone fa-2x text-success me-3"></i>
+                                <div>
+                                    <h6 class="mb-0">Телефон</h6>
+                                    <p class="mb-0">8 (800) 123-45-67</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fa-solid fa-clock fa-2x text-warning me-3"></i>
+                                <div>
+                                    <h6 class="mb-0">Время работы</h6>
+                                    <p class="mb-0">Пн-Пт 9:00 - 20:00</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Кнопка для связи -->
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <a href="#" class="btn btn-primary btn-lg">
+                <i class="fa-solid fa-paper-plane me-2"></i> Написать нам
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .about-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+    }
+
+    .mission-card, .goal-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s;
+    }
+
+    .mission-card:hover, .goal-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .for-students {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border: none;
+        border-radius: 15px;
+    }
+
+    .for-tutors {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border: none;
+        border-radius: 15px;
+    }
+
+    .contact-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+
+    .card-header {
+        background: transparent;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 12px 30px;
+        font-size: 16px;
+        transition: all 0.3s;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    ul {
+        padding-left: 20px;
+    }
+
+    ul li {
+        color: #495057;
+    }
+
+    @media (max-width: 768px) {
+        .display-4 {
+            font-size: 2rem;
+        }
+
+        .lead {
+            font-size: 1rem;
+        }
+    }
+</style>
+{% endblock %}
