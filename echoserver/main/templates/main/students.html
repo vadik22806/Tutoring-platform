@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="mb-4 d-flex gap-2">
-        <a href="{% url 'add_user' 'student' %}" class="btn btn-primary">Добавить ученика</a>
+    <div class="mb-4">
+        <span class="text-muted">Список учеников (редактирование через админку)</span>
     </div>
 
     <div class="row">
@@ -36,10 +36,8 @@
                         <p><strong>Email:</strong> {{ student.email|default:"-" }}</p>
                         <p><strong>Телефон:</strong> {{ student.phone|default:"-" }}</p>
                     </div>
-                    <div class="card-footer d-flex gap-2">
-                        <a href="{% url 'edit_user' student.id %}" class="btn btn-warning btn-sm">Редактировать</a>
-                        <a href="{% url 'delete_user' student.id %}" class="btn btn-danger btn-sm"
-                           onclick="return confirm('Вы уверены, что хотите удалить ученика?')">Удалить</a>
+                    <div class="card-footer">
+                        <span class="text-muted">Управление через <a href="/admin/">админку</a></span>
                     </div>
                 </div>
             </div>
