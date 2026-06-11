@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     PingView, SubjectListView,
-    RegisterView, LoginView, LogoutView, MeView,
+    RegisterView, LoginView, LogoutView, TokenRefreshRevokeView, MeView,
     TutorListView, StudentListView, UserDetailView, UserUpdateView,
     AvailableLessonsView, LessonListCreateView,
     LessonDetailView, CompleteLessonView, CancelLessonView,
@@ -21,6 +21,7 @@ urlpatterns = [
     path('auth/logout/', LogoutView.as_view(), name='api-auth-logout'),
     path('auth/me/', MeView.as_view(), name='api-auth-me'),
     path('auth/debug/', DebugAuthView.as_view(), name='api-auth-debug'),
+    path('auth/token/refresh/', TokenRefreshRevokeView.as_view(), name='api-token-refresh'),
 
     # Пользователи
     path('users/tutors/', TutorListView.as_view(), name='api-users-tutors'),

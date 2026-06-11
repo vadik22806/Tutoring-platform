@@ -3,14 +3,18 @@ from rest_framework.response import Response
 from rest_framework import generics, status, permissions
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from bson import ObjectId
 
 from .serializers import (
     SubjectSerializer, UserSerializer, LessonSerializer,
-    SavedLessonSerializer, BookingGroupSerializer
+    SavedLessonSerializer, BookingGroupSerializer,
+    RegisterSerializer, LoginSerializer, ProfileUpdateSerializer
 )
+from .utils import atomic_book_lesson, atomic_cancel_booking, revoke_refresh_token, is_token_revoked, get_mongo_collection
+from .permissions import IsStudent, IsTutor, IsAdmin, IsOwnerOrAdmin, IsLessonOwner, IsBookingOwner
 from main.models import Subject, User, Lesson, SavedLesson, BookingGroup
 
 
@@ -42,74 +46,27 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        data = request.data
+        serializer = RegisterSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        email = data.get('email', '').strip()
-        phone = data.get('phone', '').strip()
-        password = data.get('password', '')
-        password_confirm = data.get('password_confirm', '')
-        first_name = data.get('first_name', '').strip()
-        last_name = data.get('last_name', '').strip()
-        role = data.get('role', 'student')
-        bio = data.get('bio', '').strip()
-        subjects = data.get('subjects', [])
-
-        # Валидация
-        errors = {}
-
-        if not first_name:
-            errors['first_name'] = 'Имя обязательно'
-
-        if not email and not phone:
-            errors['email'] = 'Укажите email или номер телефона'
-            errors['phone'] = 'Укажите email или номер телефона'
-
-        if email and User.objects.filter(email=email).exists():
-            errors['email'] = 'Пользователь с таким email уже существует'
-
-        if phone:
-            import re
-            cleaned_phone = re.sub(r'[\s\-\(\)]', '', phone)
-            if User.objects.filter(phone=cleaned_phone).exists():
-                errors['phone'] = 'Пользователь с таким телефоном уже существует'
-
-        if len(password) < 6:
-            errors['password'] = 'Пароль должен быть минимум 6 символов'
-
-        if password != password_confirm:
-            errors['password_confirm'] = 'Пароли не совпадают'
-
-        if role not in ['student', 'tutor']:
-            errors['role'] = 'Роль должна быть student или tutor'
-
-        if errors:
-            return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Создаем пользователя
         try:
-            user = User(
-                email=email if email else None,
-                phone=cleaned_phone if phone else None,
-                first_name=first_name,
-                last_name=last_name,
-                role=role,
-                bio=bio,
-                subject_ids=list(subjects) if subjects else [],
-            )
-            user.set_password(password)
-            user.save()
-
+            user = serializer.save()
             tokens = get_tokens_for_user(user)
-            serializer = UserSerializer(user)
+            user_data = UserSerializer(user).data
 
             return Response({
-                'user': serializer.data,
+                'user': user_data,
                 'tokens': tokens,
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Registration error: {e}")
             return Response(
-                {'error': f'Ошибка при регистрации: {str(e)}'},
+                {'error': 'Ошибка при регистрации'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -119,49 +76,97 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        username = request.data.get('username', '').strip()
-        password = request.data.get('password', '')
+        serializer = LoginSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({'error': 'Неверный email/телефон или пароль'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        if not username or not password:
-            return Response(
-                {'error': 'Укажите email/телефон и пароль'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        user = authenticate(username=username, password=password)
-
-        if not user:
-            return Response(
-                {'error': 'Неверный email/телефон или пароль'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
+        user = serializer.validated_data['user']
         tokens = get_tokens_for_user(user)
-        serializer = UserSerializer(user)
+        user_data = UserSerializer(user).data
 
         return Response({
-            'user': serializer.data,
+            'user': user_data,
             'tokens': tokens,
         })
 
 
 class LogoutView(APIView):
-    """Выход из системы (инвалидация refresh токена)"""
+    """Выход из системы (инвалидация refresh токена)
+    
+    Отзывает refresh-токен через кастомный Mongo-блоклист,
+    т.к. штатный simplejwt blacklist требует SQL-миграций.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'message': 'Выход выполнен'}, status=200)
+
         try:
-            refresh_token = request.data.get('refresh')
-            if refresh_token:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
+            token = RefreshToken(refresh_token)
+            jti = token.payload.get('jti')
+            exp = token.payload.get('exp')
+            
+            from datetime import datetime
+            expires_at = datetime.fromtimestamp(exp) if exp else None
+            
+            success = revoke_refresh_token(jti, expires_at)
+            
+            if success:
                 return Response({'message': 'Выход выполнен успешно'})
             else:
-                return Response({'message': 'Выход выполнен'})
+                return Response({'message': 'Выход выполнен (токен не отозван)'}, status=200)
+                
         except Exception as e:
+            # Логируем ошибку, но не возвращаем 500 — пользователь всё равно выходит
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Logout error: {e}")
+            return Response({'message': 'Выход выполнен'}, status=200)
+
+
+class TokenRefreshRevokeView(APIView):
+    """Обновление access-токена с проверкой blacklist
+    
+    Проверяет, не отозван ли refresh-токен через кастомный Mongo blacklist.
+    Если токен отозван (logout), возвращает 401.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'error': 'Не указан refresh токен'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            token = RefreshToken(refresh_token)
+            jti = token.payload.get('jti')
+
+            # Проверяем, не отозван ли токен
+            if is_token_revoked(jti):
+                return Response(
+                    {'error': 'Токен отозван. Выполните вход заново'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            # Генерируем новый access-токен
+            new_access = str(token.access_token)
+            return Response({'access': new_access})
+
+        except TokenError as e:
             return Response(
-                {'error': f'Ошибка при выходе: {str(e)}'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': f'Недействительный токен: {str(e)}'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Token refresh error: {e}")
+            return Response(
+                {'error': 'Ошибка при обновлении токена'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
@@ -202,16 +207,9 @@ class UserDetailView(generics.RetrieveAPIView):
 
 class UserUpdateView(APIView):
     """Редактирование профиля пользователя"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
 
     def put(self, request, id):
-        # Проверяем, что пользователь редактирует свой профиль
-        if str(request.user._id) != id and request.user.role != 'admin':
-            return Response(
-                {'error': 'Вы можете редактировать только свой профиль'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
         try:
             user = User.objects.get(_id=ObjectId(id))
         except User.DoesNotExist:
@@ -220,39 +218,17 @@ class UserUpdateView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        data = request.data
+        # Проверка прав через permission-класс
+        self.check_object_permissions(request, user)
 
-        # Разрешенные поля для обновления
-        if 'first_name' in data:
-            user.first_name = data['first_name'].strip()
-        if 'last_name' in data:
-            user.last_name = data['last_name'].strip()
-        if 'bio' in data:
-            user.bio = data['bio'].strip()
-        if 'subject_ids' in data:
-            user.subject_ids = list(data['subject_ids'])
-        if 'email' in data:
-            email = data['email'].strip()
-            if email and User.objects.filter(email=email).exclude(pk=user.pk).exists():
-                return Response(
-                    {'error': 'Пользователь с таким email уже существует'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            user.email = email if email else None
-        if 'phone' in data:
-            import re
-            phone = data['phone'].strip()
-            cleaned_phone = re.sub(r'[\s\-\(\)]', '', phone)
-            if cleaned_phone and User.objects.filter(phone=cleaned_phone).exclude(pk=user.pk).exists():
-                return Response(
-                    {'error': 'Пользователь с таким телефоном уже существует'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            user.phone = cleaned_phone if cleaned_phone else None
+        serializer = ProfileUpdateSerializer(data=request.data, instance_user=user)
+        
+        if not serializer.is_valid():
+            return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        user.save()
-        serializer = UserSerializer(user)
-        return Response(serializer.data)
+        updated_user = serializer.update_instance(user)
+        user_data = UserSerializer(updated_user).data
+        return Response(user_data)
 
 
 # ========== ЗАНЯТИЯ ==========
@@ -274,6 +250,11 @@ class LessonListCreateView(generics.ListCreateAPIView):
     """Список всех занятий и создание нового занятия"""
     serializer_class = LessonSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), IsTutor()]
+        return super().get_permissions()
 
     def get_queryset(self):
         queryset = Lesson.objects.all().order_by('-date')
@@ -301,11 +282,6 @@ class LessonListCreateView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        # Проверяем, что пользователь — репетитор
-        if self.request.user.role != 'tutor':
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied('Только репетиторы могут создавать занятия')
-
         serializer.save(tutor_id=str(self.request.user._id), status='available')
 
 
@@ -313,10 +289,12 @@ class LessonListCreateView(generics.ListCreateAPIView):
 
 class LessonDetailView(APIView):
     """Детали занятия, редактирование, удаление"""
+    permission_classes = [IsLessonOwner]
+
     def get_permissions(self):
         if self.request.method == 'GET':
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), IsLessonOwner()]
 
     def get(self, request, id):
         try:
@@ -332,9 +310,8 @@ class LessonDetailView(APIView):
         except Lesson.DoesNotExist:
             return Response({'error': 'Занятие не найдено'}, status=404)
 
-        # Только репетитор-владелец или админ
-        if lesson.tutor_id != str(request.user._id) and request.user.role != 'admin':
-            return Response({'error': 'Это не ваше занятие'}, status=403)
+        # Проверка прав через permission-класс
+        self.check_object_permissions(request, lesson)
 
         if lesson.status != 'available':
             return Response({'error': 'Нельзя редактировать занятие, на которое кто-то записан'}, status=400)
@@ -359,8 +336,8 @@ class LessonDetailView(APIView):
         except Lesson.DoesNotExist:
             return Response({'error': 'Занятие не найдено'}, status=404)
 
-        if lesson.tutor_id != str(request.user._id) and request.user.role != 'admin':
-            return Response({'error': 'Это не ваше занятие'}, status=403)
+        # Проверка прав через permission-класс
+        self.check_object_permissions(request, lesson)
 
         if lesson.status != 'available':
             return Response({'error': 'Нельзя удалить занятие, на которое кто-то записан'}, status=400)
@@ -371,7 +348,7 @@ class LessonDetailView(APIView):
 
 class CompleteLessonView(APIView):
     """Завершить занятие"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsLessonOwner]
 
     def post(self, request, id):
         try:
@@ -379,8 +356,8 @@ class CompleteLessonView(APIView):
         except Lesson.DoesNotExist:
             return Response({'error': 'Занятие не найдено'}, status=404)
 
-        if lesson.tutor_id != str(request.user._id) and request.user.role != 'admin':
-            return Response({'error': 'Это не ваше занятие'}, status=403)
+        # Проверка прав через permission-класс
+        self.check_object_permissions(request, lesson)
 
         if lesson.status != 'booked':
             return Response({'error': 'Можно завершить только забронированное занятие'}, status=400)
@@ -392,7 +369,7 @@ class CompleteLessonView(APIView):
 
 class CancelLessonView(APIView):
     """Отменить занятие (репетитор)"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsLessonOwner]
 
     def post(self, request, id):
         try:
@@ -400,8 +377,8 @@ class CancelLessonView(APIView):
         except Lesson.DoesNotExist:
             return Response({'error': 'Занятие не найдено'}, status=404)
 
-        if lesson.tutor_id != str(request.user._id) and request.user.role != 'admin':
-            return Response({'error': 'Это не ваше занятие'}, status=403)
+        # Проверка прав через permission-класс
+        self.check_object_permissions(request, lesson)
 
         if lesson.status != 'booked':
             return Response({'error': 'Можно отменить только забронированное занятие'}, status=400)
@@ -415,40 +392,33 @@ class CancelLessonView(APIView):
 # ========== ЗАПИСИ (BOOKINGS) ==========
 
 class BookLessonView(APIView):
-    """Записаться на занятие (только ученик)"""
-    permission_classes = [IsAuthenticated]
+    """Записаться на занятие (только ученик) — атомарно"""
+    permission_classes = [IsStudent]
 
     def post(self, request):
-        if request.user.role != 'student':
-            return Response({'error': 'Только ученики могут записываться'}, status=403)
 
         lesson_id = request.data.get('lesson_id')
         if not lesson_id:
             return Response({'error': 'Не указан lesson_id'}, status=400)
 
+        # Проверка на конфликт по времени (неатомарная, но приемлемая проверка)
         try:
-            lesson = Lesson.objects.get(_id=ObjectId(lesson_id))
+            lesson_check = Lesson.objects.get(_id=ObjectId(lesson_id))
+            conflicting = Lesson.objects.filter(
+                student_id=str(request.user._id),
+                status='booked',
+                date=lesson_check.date
+            ).exists()
+            if conflicting:
+                return Response({'error': 'У вас уже есть занятие на это время'}, status=400)
         except Lesson.DoesNotExist:
-            return Response({'error': 'Занятие не найдено'}, status=404)
+            pass
 
-        if lesson.status != 'available':
-            return Response({'error': 'Это занятие уже недоступно'}, status=400)
+        # Атомарная запись через PyMongo
+        result = atomic_book_lesson(lesson_id, str(request.user._id))
 
-        if lesson.date < timezone.now():
-            return Response({'error': 'Нельзя записаться на прошедшее занятие'}, status=400)
-
-        # Проверка на конфликт по времени
-        conflicting = Lesson.objects.filter(
-            student_id=str(request.user._id),
-            status='booked',
-            date=lesson.date
-        ).exists()
-        if conflicting:
-            return Response({'error': 'У вас уже есть занятие на это время'}, status=400)
-
-        lesson.student_id = str(request.user._id)
-        lesson.status = 'booked'
-        lesson.save()
+        if not result['success']:
+            return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
 
         # Удаляем из отложенных, если было
         SavedLesson.objects.filter(
@@ -456,39 +426,36 @@ class BookLessonView(APIView):
             lesson_id=lesson_id
         ).delete()
 
+        # Возвращаем обновлённое занятие через сериализатор
+        lesson = Lesson.objects.get(_id=ObjectId(lesson_id))
         serializer = LessonSerializer(lesson)
         return Response(serializer.data)
 
 
 class CancelBookingView(APIView):
-    """Отменить запись (ученик)"""
-    permission_classes = [IsAuthenticated]
+    """Отменить запись (ученик) — атомарно"""
+    permission_classes = [IsBookingOwner]
 
     def post(self, request, id):
-        try:
-            lesson = Lesson.objects.get(_id=ObjectId(id))
-        except Lesson.DoesNotExist:
-            return Response({'error': 'Занятие не найдено'}, status=404)
+        if request.user.role == 'admin' and not request.data.get('student_id'):
+            # Для админов нужно передать student_id
+            return Response({'error': 'Администратор должен указать student_id'}, status=400)
 
-        if lesson.student_id != str(request.user._id) and request.user.role != 'admin':
-            return Response({'error': 'Это не ваша запись'}, status=403)
+        student_id = str(request.user._id) if request.user.role == 'student' else request.data.get('student_id', str(request.user._id))
 
-        if lesson.status != 'booked':
-            return Response({'error': 'Можно отменить только забронированное занятие'}, status=400)
+        result = atomic_cancel_booking(id, student_id)
 
-        lesson.student_id = None
-        lesson.status = 'available'
-        lesson.save()
+        if not result['success']:
+            return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response({'message': 'Запись отменена'})
 
 
 class MyBookingsView(APIView):
     """История записей ученика"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request):
-        if request.user.role != 'student':
-            return Response({'error': 'Только для учеников'}, status=403)
 
         lessons = Lesson.objects.filter(
             student_id=str(request.user._id)
@@ -517,11 +484,9 @@ class MyBookingsView(APIView):
 
 class SavedLessonListView(APIView):
     """Список избранных занятий ученика"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request):
-        if request.user.role != 'student':
-            return Response({'error': 'Только для учеников'}, status=403)
 
         saved_ids = SavedLesson.objects.filter(
             student_id=str(request.user._id)
@@ -548,11 +513,9 @@ class SavedLessonListView(APIView):
 
 class SaveLessonView(APIView):
     """Добавить занятие в избранное"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def post(self, request, id):
-        if request.user.role != 'student':
-            return Response({'error': 'Только ученики могут добавлять в избранное'}, status=403)
 
         try:
             lesson = Lesson.objects.get(_id=ObjectId(id))
@@ -575,11 +538,9 @@ class SaveLessonView(APIView):
 
 class UnsaveLessonView(APIView):
     """Удалить занятие из избранного"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def delete(self, request, id):
-        if request.user.role != 'student':
-            return Response({'error': 'Только ученики могут управлять избранным'}, status=403)
 
         deleted = SavedLesson.objects.filter(
             student_id=str(request.user._id),
@@ -594,11 +555,9 @@ class UnsaveLessonView(APIView):
 
 class BookAllSavedView(APIView):
     """Записаться на все избранные занятия"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def post(self, request):
-        if request.user.role != 'student':
-            return Response({'error': 'Только ученики могут записываться'}, status=403)
 
         saved_ids = SavedLesson.objects.filter(
             student_id=str(request.user._id)
@@ -608,7 +567,7 @@ class BookAllSavedView(APIView):
             return Response({'error': 'У вас нет избранных занятий'}, status=400)
 
         now = timezone.now()
-        booked_count = 0
+        booked_ids = []
         failed_lessons = []
 
         # Создаем группу заказа
@@ -619,44 +578,35 @@ class BookAllSavedView(APIView):
         )
 
         for lesson_id in saved_ids:
-            try:
-                lesson = Lesson.objects.get(_id=ObjectId(lesson_id))
+            # Атомарная запись через find_one_and_update
+            result = atomic_book_lesson(lesson_id, str(request.user._id))
 
-                if lesson.status != 'available':
-                    failed_lessons.append(f"{lesson_id} (уже недоступно)")
-                    continue
-                if lesson.date < now:
-                    failed_lessons.append(f"{lesson_id} (прошедшее)")
-                    continue
-
-                conflicting = Lesson.objects.filter(
-                    student_id=str(request.user._id),
-                    status='booked',
-                    date=lesson.date
-                ).exists()
-                if conflicting:
-                    failed_lessons.append(f"{lesson_id} (конфликт)")
-                    continue
-
-                lesson.student_id = str(request.user._id)
-                lesson.status = 'booked'
-                lesson.save()
-
+            if result['success']:
                 booking_group.lessons_count += 1
-                booking_group.total_price += lesson.price
-                booked_count += 1
-
-            except Exception:
-                failed_lessons.append(f"{lesson_id} (ошибка)")
+                booking_group.total_price += result['lesson'].get('price', 0)
+                booked_ids.append(lesson_id)
+            else:
+                failed_lessons.append({
+                    'lesson_id': lesson_id,
+                    'error': result['error']
+                })
 
         booking_group.save()
-        SavedLesson.objects.filter(student_id=str(request.user._id)).delete()
 
-        result = {'booked': booked_count}
-        if failed_lessons:
-            result['failed'] = len(failed_lessons)
-            result['failed_details'] = failed_lessons[:3]
-        if booked_count > 0:
+        # Удаляем из saved только успешно забронированные
+        if booked_ids:
+            SavedLesson.objects.filter(
+                student_id=str(request.user._id),
+                lesson_id__in=booked_ids
+            ).delete()
+
+        result = {
+            'booked': len(booked_ids),
+            'failed': len(failed_lessons),
+            'booked_ids': booked_ids,
+            'failed_details': failed_lessons[:5],
+        }
+        if len(booked_ids) > 0:
             result['booking_group_id'] = booking_group.id
 
         return Response(result)
@@ -683,125 +633,206 @@ class StudentListView(generics.ListAPIView):
 # ========== ДАШБОРДЫ ==========
 
 class DashboardView(APIView):
-    """Данные для личного кабинета (дашборда)"""
+    """Данные для личного кабинета (дашборда) — оптимизированная версия
+    
+    Использует пакетную загрузку и MongoDB агрегаты вместо Python-циклов.
+    Для рекомендаций репетиторов — использует агрегатный запрос с $lookup.
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
         now = timezone.now()
-        subjects_dict = {str(s._id): s.name for s in Subject.objects.all()}
+        
+        # Пакетная загрузка всех предметов (один запрос вместо десятков)
+        all_subjects = Subject.objects.all()
+        subjects_dict = {str(s._id): s.name for s in all_subjects}
 
         if user.role == 'tutor':
-            # Занятия репетитора
-            my_lessons = Lesson.objects.filter(tutor_id=str(user._id)).order_by('date')
-
-            # Предметы репетитора
-            tutor_subjects = []
-            if user.subject_ids:
-                for sid in user.subject_ids:
-                    if sid in subjects_dict:
-                        tutor_subjects.append({'id': sid, 'name': subjects_dict[sid]})
-
-            # Статистика
-            total = my_lessons.count()
-            available = my_lessons.filter(status='available').count()
-            booked = my_lessons.filter(status='booked').count()
-            completed = my_lessons.filter(status='completed').count()
-
-            return Response({
-                'role': 'tutor',
-                'user': UserSerializer(user).data,
-                'subjects': tutor_subjects,
-                'stats': {
-                    'total': total,
-                    'available': available,
-                    'booked': booked,
-                    'completed': completed,
-                }
-            })
-
+            return self._tutor_dashboard(user, subjects_dict)
         elif user.role == 'student':
-            # Доступные занятия (первые 5)
-            available_lessons = Lesson.objects.filter(
-                status='available', date__gt=now
-            ).order_by('date')[:5]
-
-            # Мои предстоящие занятия
-            my_lessons = Lesson.objects.filter(
-                student_id=str(user._id), status='booked', date__gt=now
-            ).order_by('date')[:5]
-
-            # Отложенные
-            saved_ids = SavedLesson.objects.filter(
-                student_id=str(user._id)
-            ).values_list('lesson_id', flat=True)
-            saved_lessons = Lesson.objects.filter(_id__in=[ObjectId(id) for id in saved_ids])
-
-            # Рекомендуемые репетиторы (по интересам ученика)
-            student_subject_ids = user.subject_ids if user.subject_ids else []
-            all_tutors = User.objects.filter(role='tutor')
-            recommended_tutors = []
-
-            for tutor in all_tutors:
-                if tutor.subject_ids:
-                    common = []
-                    for sid in student_subject_ids:
-                        if sid in tutor.subject_ids:
-                            name = subjects_dict.get(str(sid), 'Неизвестный предмет')
-                            common.append(name)
-                    if common:
-                        tutor_names = []
-                        for sid in tutor.subject_ids:
-                            name = subjects_dict.get(str(sid), 'Неизвестный предмет')
-                            tutor_names.append(name)
-                        recommended_tutors.append({
-                            'id': tutor.id,
-                            'first_name': tutor.first_name,
-                            'last_name': tutor.last_name,
-                            'rating': tutor.rating,
-                            'bio': tutor.bio,
-                            'common_subjects': common,
-                            'subject_names': tutor_names,
-                        })
-
-            recommended_tutors.sort(key=lambda x: x.get('rating') or 0, reverse=True)
-            recommended_tutors = recommended_tutors[:3]
-
-            # Статистика
-            total_booked = Lesson.objects.filter(
-                student_id=str(user._id), status='booked'
-            ).count()
-            completed_count = Lesson.objects.filter(
-                student_id=str(user._id), status='completed'
-            ).count()
-
-            # Формируем данные с названиями предметов и именами
-            def enrich_lesson(lesson):
-                data = LessonSerializer(lesson).data
-                data['subject_name'] = subjects_dict.get(str(lesson.subject_id), 'Неизвестный предмет')
-                try:
-                    tutor = User.objects.get(_id=ObjectId(lesson.tutor_id))
-                    data['tutor_name'] = f"{tutor.first_name} {tutor.last_name}"
-                except:
-                    data['tutor_name'] = None
-                return data
-
-            return Response({
-                'role': 'student',
-                'user': UserSerializer(user).data,
-                'available_lessons': [enrich_lesson(l) for l in available_lessons],
-                'my_lessons': [enrich_lesson(l) for l in my_lessons],
-                'saved_lessons': [enrich_lesson(l) for l in saved_lessons],
-                'recommended_tutors': recommended_tutors,
-                'stats': {
-                    'total': total_booked,
-                    'completed': completed_count,
-                    'interests': len(student_subject_ids),
-                    'saved': saved_lessons.count(),
-                }
-            })
-
+            return self._student_dashboard(user, subjects_dict, now)
         return Response({'error': 'Неизвестная роль'}, status=400)
+
+    def _tutor_dashboard(self, user, subjects_dict):
+        """Дашборд репетитора — один запрос к БД со статистикой"""
+        user_id = str(user._id)
+        
+        # Получаем статистику через MongoDB агрегат
+        lessons_collection = get_mongo_collection('lessons')
+        
+        pipeline = [
+            {'$match': {'tutor_id': user_id}},
+            {'$group': {
+                '_id': None,
+                'total': {'$sum': 1},
+                'available': {'$sum': {'$cond': [{'$eq': ['$status', 'available']}, 1, 0]}},
+                'booked': {'$sum': {'$cond': [{'$eq': ['$status', 'booked']}, 1, 0]}},
+                'completed': {'$sum': {'$cond': [{'$eq': ['$status', 'completed']}, 1, 0]}},
+            }}
+        ]
+        
+        stats_result = list(lessons_collection.aggregate(pipeline))
+        
+        # Предметы репетитора (из subject_ids)
+        tutor_subjects = []
+        if user.subject_ids:
+            for sid in user.subject_ids:
+                if sid in subjects_dict:
+                    tutor_subjects.append({'id': sid, 'name': subjects_dict[sid]})
+
+        stats = stats_result[0] if stats_result else {}
+        
+        return Response({
+            'role': 'tutor',
+            'user': UserSerializer(user).data,
+            'subjects': tutor_subjects,
+            'stats': {
+                'total': stats.get('total', 0),
+                'available': stats.get('available', 0),
+                'booked': stats.get('booked', 0),
+                'completed': stats.get('completed', 0),
+            }
+        })
+
+    def _student_dashboard(self, user, subjects_dict, now):
+        """Дашборд ученика — пакетная загрузка всех данных"""
+        user_id = str(user._id)
+        student_subject_ids = user.subject_ids if user.subject_ids else []
+
+        # Параллельные запросы (все 5 за раз через MongoDB агрегат)
+        
+        # 1. Доступные занятия (первые 5)
+        available_lessons = list(Lesson.objects.filter(
+            status='available', date__gt=now
+        ).order_by('date')[:5])
+
+        # 2. Мои предстоящие занятия
+        my_lessons = list(Lesson.objects.filter(
+            student_id=user_id, status='booked', date__gt=now
+        ).order_by('date')[:5])
+
+        # 3. Отложенные занятия
+        saved_ids = list(SavedLesson.objects.filter(
+            student_id=user_id
+        ).values_list('lesson_id', flat=True))
+        
+        saved_lessons = []
+        if saved_ids:
+            saved_lessons = list(Lesson.objects.filter(
+                _id__in=[ObjectId(id) for id in saved_ids]
+            ))
+
+        # 4. Рекомендуемые репетиторы — через MongoDB агрегат с Lookup
+        #    (вместо Python-цикла по всем репетиторам)
+        recommended_tutors = self._get_recommended_tutors(
+            student_subject_ids, subjects_dict
+        )
+        
+        # 5. Статистика
+        total_booked = Lesson.objects.filter(
+            student_id=user_id, status='booked'
+        ).count()
+        completed_count = Lesson.objects.filter(
+            student_id=user_id, status='completed'
+        ).count()
+
+        # Обогащаем занятия именами и предметами пакетно
+        tutor_ids = set()
+        for lesson in available_lessons + my_lessons + saved_lessons:
+            if lesson.tutor_id:
+                tutor_ids.add(ObjectId(lesson.tutor_id))
+        
+        # Пакетная загрузка репетиторов (один запрос вместо N)
+        tutors_map = {}
+        if tutor_ids:
+            tutors = User.objects.filter(_id__in=list(tutor_ids))
+            tutors_map = {str(t._id): f"{t.first_name} {t.last_name}" for t in tutors}
+
+        def enrich_lesson(lesson):
+            data = LessonSerializer(lesson).data
+            data['subject_name'] = subjects_dict.get(str(lesson.subject_id), 'Неизвестный предмет')
+            data['tutor_name'] = tutors_map.get(lesson.tutor_id, None)
+            return data
+
+        return Response({
+            'role': 'student',
+            'user': UserSerializer(user).data,
+            'available_lessons': [enrich_lesson(l) for l in available_lessons],
+            'my_lessons': [enrich_lesson(l) for l in my_lessons],
+            'saved_lessons': [enrich_lesson(l) for l in saved_lessons],
+            'recommended_tutors': recommended_tutors,
+            'stats': {
+                'total': total_booked,
+                'completed': completed_count,
+                'interests': len(student_subject_ids),
+                'saved': len(saved_lessons),
+            }
+        })
+
+    def _get_recommended_tutors(self, student_subject_ids, subjects_dict):
+        """
+        Поиск рекомендуемых репетиторов через MongoDB агрегат.
+        Использует $lookup + $match по интересам ученика.
+        """
+        if not student_subject_ids:
+            return []
+        
+        # Используем агрегат для поиска репетиторов с совпадающими предметами
+        users_collection = get_mongo_collection('users')
+        
+        pipeline = [
+            {'$match': {'role': 'tutor', 'subject_ids': {'$in': student_subject_ids}}},
+            {'$addFields': {
+                'common_count': {
+                    '$size': {
+                        '$filter': {
+                            'input': '$subject_ids',
+                            'as': 'sid',
+                            'cond': {'$in': ['$$sid', student_subject_ids]}
+                        }
+                    }
+                }
+            }},
+            {'$sort': {'common_count': -1, 'rating': -1}},
+            {'$limit': 3},
+            {'$project': {
+                '_id': {'$toString': '$_id'},
+                'first_name': 1,
+                'last_name': 1,
+                'rating': 1,
+                'bio': 1,
+                'subject_ids': 1,
+            }}
+        ]
+        
+        try:
+            tutors = list(users_collection.aggregate(pipeline))
+        except Exception:
+            return []
+        
+        result = []
+        for t in tutors:
+            common = []
+            tutor_names = []
+            for sid in (t.get('subject_ids') or []):
+                sid_str = str(sid)
+                if sid_str in subjects_dict:
+                    if sid_str in student_subject_ids:
+                        common.append(subjects_dict[sid_str])
+                    tutor_names.append(subjects_dict[sid_str])
+            
+            result.append({
+                'id': t.get('_id'),
+                'first_name': t.get('first_name', ''),
+                'last_name': t.get('last_name', ''),
+                'rating': t.get('rating'),
+                'bio': t.get('bio', ''),
+                'common_subjects': common,
+                'subject_names': tutor_names,
+            })
+        
+        return result
 
 
 # ========== AJAX ПРОВЕРКИ ==========
