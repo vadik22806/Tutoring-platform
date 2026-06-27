@@ -4,9 +4,15 @@ import os
 import sys
 
 
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+ECHOSERVER_ROOT = os.path.join(PROJECT_ROOT, "echoserver")
+if ECHOSERVER_ROOT not in sys.path:
+    sys.path.insert(0, ECHOSERVER_ROOT)
+
+
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'echoserver.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
