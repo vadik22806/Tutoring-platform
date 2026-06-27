@@ -183,7 +183,7 @@ class MeView(APIView):
 
 class TutorListView(generics.ListAPIView):
     """Список всех репетиторов"""
-    queryset = User.objects.filter(role='tutor')
+    queryset = User.objects.filter(role='tutor').order_by('first_name', 'last_name')
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
@@ -616,7 +616,7 @@ class BookAllSavedView(APIView):
 
 class SubjectListView(generics.ListAPIView):
     """Список всех предметов"""
-    queryset = Subject.objects.all()
+    queryset = Subject.objects.all().order_by('name')
     serializer_class = SubjectSerializer
     permission_classes = [AllowAny]
 
@@ -625,7 +625,7 @@ class SubjectListView(generics.ListAPIView):
 
 class StudentListView(generics.ListAPIView):
     """Список всех учеников"""
-    queryset = User.objects.filter(role='student')
+    queryset = User.objects.filter(role='student').order_by('first_name', 'last_name')
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 

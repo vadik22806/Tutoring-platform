@@ -67,21 +67,23 @@ def tutor_user(db):
 
 
 @pytest.fixture
-def student_client(api_client, student_user):
+def student_client(student_user):
     """API client авторизованный как ученик"""
     from rest_framework_simplejwt.tokens import RefreshToken
+    client = APIClient()
     refresh = RefreshToken.for_user(student_user)
-    api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
-    return api_client
+    client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+    return client
 
 
 @pytest.fixture
-def tutor_client(api_client, tutor_user):
+def tutor_client(tutor_user):
     """API client авторизованный как репетитор"""
     from rest_framework_simplejwt.tokens import RefreshToken
+    client = APIClient()
     refresh = RefreshToken.for_user(tutor_user)
-    api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
-    return api_client
+    client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+    return client
 
 
 @pytest.fixture
@@ -119,9 +121,9 @@ class TestAuth:
         assert r.status_code == 200
         assert r.json()['status'] == 'ok'
 
-    def test_register_student(self, api_client):
+    def test_register_student(self, api_client, db):
         email = f"pytest_reg_{ObjectId()}@test.ru"
-        r = api_client.post('/api/auth/register/', {
+        r = api_client.post('/api/auth/register/', {    
             'email': email,
             'password': 'test123',
             'password_confirm': 'test123',
@@ -132,9 +134,9 @@ class TestAuth:
         assert 'tokens' in r.json()
         assert r.json()['user']['email'] == email
 
-    def test_register_tutor(self, api_client):
+    def test_register_tutor(self, api_client, db):
         email = f"pytest_reg_tutor_{ObjectId()}@test.ru"
-        r = api_client.post('/api/auth/register/', {
+        r = api_client.post('/api/auth/register/', {    
             'email': email,
             'password': 'test123',
             'password_confirm': 'test123',

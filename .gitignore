@@ -37,12 +37,14 @@ Thumbs.db
 config.py
 secrets.json
 *.pem
+echoserver/.env
 
-# Ignore local technical spec for AI agent
+# Local technical docs (keep only README on GitHub)
 echoserver/TECHNICAL_SPEC_AI_AGENT.md
-
-# System and internal docs (keep only README)
-before_pin_requirements.txt
+echoserver/TECHNICAL_SPEC_AND_API_DOCS.md
+echoserver/API_DOCUMENTATION.md
+echoserver/PROMPT.md
 echoserver/ENVIRONMENT_ISSUE_AND_FIX.md
 echoserver/PROGRESS.md
 echoserver/API_REVIEW_ACTIONS.md
+before_pin_requirements.txt

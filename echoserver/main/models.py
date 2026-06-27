@@ -14,6 +14,7 @@ class Subject(models.Model):
         db_table = "subjects"
         verbose_name = 'Предмет'
         verbose_name_plural = 'Предметы'
+        ordering = ['name']
 
     @property
     def id(self):
@@ -132,6 +133,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_table = "users"
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
+        ordering = ['first_name', 'last_name']
         # Индексы для быстрого поиска
         indexes = [
             models.Index(fields=['email']),
