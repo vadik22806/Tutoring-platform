@@ -1,110 +1,70 @@
-# EchoServer
+# StudyEasy — Tutoring Platform
 
-## Overview
-EchoServer is a Django tutoring platform with a custom MongoDB-backed data model and user flows for students, tutors, and administrators.
+Платформа для поиска репетиторов и записи на занятия. Django + MongoDB + REST API.
 
-The app supports:
-- login by email or phone
-- student and tutor registration
-- role-based dashboards
-- lesson creation, booking, editing, cancellation, and completion
-- saved lessons (cart-like workflow)
-- booking history
-- profile editing
-- a custom `User` model with `djongo` / MongoDB storage
+## Стек
 
-## Project Structure
+- **Python 3.11**, Django 3.1.12, DRF 3.12.4
+- **MongoDB** (djongo + PyMongo)
+- **JWT** авторизация (djangorestframework-simplejwt)
+- **pytest** (31 тест)
+
+## Структура
+
 ```
 echoserver/
-├── manage.py                     # Django command-line utility
-├── echoserver/                   # Project configuration package
-│   ├── __init__.py
-│   ├── asgi.py
-│   ├── settings.py               # Project settings, MongoDB / djongo configuration
-│   ├── urls.py                   # Root URL configuration
-│   └── wsgi.py
-├── main/                         # Core application
-│   ├── __init__.py
-│   ├── admin.py
-│   ├── apps.py
-│   ├── authentication.py         # Email/phone authentication backend
-│   ├── forms.py
-│   ├── models.py                 # Custom user model, subjects, lessons, saved lessons
-│   ├── mongo_db.py
-│   ├── tests.py
-│   ├── urls.py
+├── config/            # Настройки Django (DRF, JWT, БД)
+├── main/              # Старый сайт (шаблоны, сессии)
+├── api/               # REST API (27 эндпоинтов)
 │   ├── views.py
-│   ├── migrations/
-│   ├── static/main/              # Static assets (CSS, images, JS)
-│   └── templates/main/           # HTML templates
-├── db.sqlite3                    # Local database file (leftover from development)
-└── README.md                     # Project documentation
+│   ├── serializers.py
+│   ├── permissions.py
+│   ├── authentication.py
+│   └── utils.py       # Атомарные операции с MongoDB
+├── tests/             # pytest-тесты
+├── manage.py
+├── .env.example       # Шаблон настроек (скопировать в .env)
+└── requirements.txt
 ```
 
-## Requirements
-The current project uses:
-- Python 3.10+ (recommended)
-- Django 6.0.2
-- djongo
-- pymongo
-- dnspython
-- MongoDB running locally on `mongodb://localhost:27017`
+## Быстрый старт
 
-> Note: `settings.py` is configured for MongoDB/djongo. The included `db.sqlite3` appears to be a development artifact and is not used by the current database settings.
-
-## Setup & Installation
-1. Clone the repository:
-   ```bash
-   git clone <repo-url>
-   cd echoserver
-   ```
-2. Create and activate a virtual environment:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-3. Install required packages:
-   ```bash
-   pip install Django==6.0.2 djongo pymongo dnspython
-   ```
-4. Start or verify your MongoDB server:
-   - Default host: `mongodb://localhost:27017`
-   - Default database name: `Tutoring`
-   - Database settings are in `echoserver/settings.py`
-5. Apply Django migrations:
-   ```bash
-   python manage.py migrate
-   ```
-6. Create a superuser (optional):
-   ```bash
-   python manage.py createsuperuser
-   ```
-7. Run the development server:
-   ```bash
-   python manage.py runserver
-   ```
-
-The application will be available at `http://127.0.0.1:8000/`.
-
-## Running Tests
-Run the Django unit tests:
 ```bash
-python manage.py test
+# 1. Виртуальное окружение
+python3 -m venv .venv && source .venv/bin/activate
+
+# 2. Зависимости
+pip install -r requirements.txt
+
+# 3. Настройки
+cp echoserver/.env.example echoserver/.env
+# Отредактировать echoserver/.env при необходимости
+
+# 4. MongoDB (должен быть запущен локально)
+
+# 5. Запуск
+cd echoserver && python manage.py runserver
 ```
 
-Run Selenium / end-to-end tests:
+Сайт: http://127.0.0.1:8000/
+API: http://127.0.0.1:8000/api/ping/
+
+## Тесты
+
 ```bash
-python -m unittest discover -s test
+cd echoserver && python -m pytest tests/test_api_pytest.py -v
 ```
 
-## Useful Links
-- Admin dashboard: `http://127.0.0.1:8000/admin/`
-- Student dashboard: `http://127.0.0.1:8000/dashboard/student/`
-- Tutor dashboard: `http://127.0.0.1:8000/dashboard/tutor/`
+## API Эндпоинты
 
-## Contributing
-Contributions are welcome. Fork the repository, create a feature branch, and submit a pull request.
-Please ensure code style is consistent and tests pass before submitting changes.
+| Категория | Эндпоинты |
+|-----------|-----------|
+| Auth | register, login, logout, token/refresh, me |
+| Users | tutors, students, profile, update, dashboard |
+| Lessons | list, create, detail, update, delete, complete, cancel |
+| Bookings | book, cancel, my-bookings |
+| Saved | list, save, unsave, book-all |
+| Subjects | list |
+| Ajax | check-email, check-phone |
 
-## License
-This project is licensed under the MIT License – see the `LICENSE` file for details.
+Полная документация: `echoserver/TECHNICAL_SPEC_AND_API_DOCS.md`
