@@ -38,6 +38,7 @@ config.py
 secrets.json
 *.pem
 echoserver/.env
+frontend/.env
 
 # Local technical docs (keep only README on GitHub)
 echoserver/TECHNICAL_SPEC_AI_AGENT.md
